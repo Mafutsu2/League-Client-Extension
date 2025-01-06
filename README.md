@@ -20,7 +20,6 @@ https://www.oracle.com/ca-en/java/technologies/downloads/#jdk21-windows
 
 #### For the Auto Champ-Select
 <ul>
-  <li style="list-style-type: none; font-size: 16px">For the auto champ select</li>
   <li>Champions will be banned/hovered/picked depending on the lane written(can be changed with the icons above)</li>
   <li>It will never ban a champion your team has already banned/hovered</li>
   <li>It will never pick a champion any team has banned/picked</li>
