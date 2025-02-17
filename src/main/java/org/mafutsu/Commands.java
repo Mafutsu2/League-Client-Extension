@@ -23,6 +23,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.mafutsu.util.ClientType.RIOT;
 import static org.mafutsu.util.Constants.*;
@@ -35,8 +38,9 @@ public class Commands implements IWSClient {
   private final ArrayList<String> awaitingSubEvents, currentSubEvents;
   private ArrayList<Participant> summoners;
   private WSClient wsClient;
-  private boolean isWaitAccept, hasBanned, hasHovered, hasPicked, isConnectingToWS, isAutoAccept, isAutoAcceptSwap, isAutoChampSelect, isInNeedOfHover;
+  private boolean isWaitAccept, hasBanned, hasHovered, hasPicked, isConnectingToWS, isAutoAccept, isAutoAcceptSwap, isAutoChampSelect, isInNeedOfHover, isWaitDelay;
   private int localPlayerCellId, champSelectPhaseId, delay;
+  private long timestampWithDelay;
   private String primaryRole, secondaryRole;
   private ArrayList<Champion> banChampionsPrimary, hoverChampionsPrimary, pickChampionsPrimary, banChampionsSecondary, hoverChampionsSecondary, pickChampionsSecondary;
 
@@ -53,6 +57,7 @@ public class Commands implements IWSClient {
     isAutoAcceptSwap = false;
     isAutoChampSelect = false;
     isInNeedOfHover = false;
+    isWaitDelay = false;
     localPlayerCellId = -2;
     champSelectPhaseId = -2;
     delay = 500;
@@ -170,12 +175,20 @@ public class Commands implements IWSClient {
       if(data.get("data") instanceof JSONObject dataObj) {
         if(dataObj.get("readyCheck") instanceof JSONObject readyCheck) {
           if(readyCheck.get("state").equals("InProgress") && readyCheck.get("playerResponse").equals("None")) {
-            try {
-              Thread.sleep(delay);
-              acceptGame();
-            } catch(InterruptedException e) {
-              e.printStackTrace();
+            if(!isWaitDelay) {
+              isWaitDelay = true;
+              ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+              Runnable task = () -> {
+                if(isWaitDelay) {
+                  acceptGame();
+                  isWaitDelay = false;
+                }
+              };
+              scheduler.schedule(task, delay, TimeUnit.MILLISECONDS);
+              scheduler.shutdown();
             }
+          } else if(readyCheck.get("state").equals("InProgress")) {
+            isWaitDelay = false;
           }
         }
       }
