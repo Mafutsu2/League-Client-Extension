@@ -478,7 +478,7 @@ public class Window implements ActionListener, ICommands, ComboBoxMultiListener,
           primaryLabel.setText(roles.getIdPref()[0].getShortcut());
           secondaryLabel.setText(roles.getIdPref()[1].getShortcut());
           commands.setPrimaryRole(roles.getIdPref()[0].getId());
-          commands.setSecondaryRole(roles.getIdPref()[0].getId());
+          commands.setSecondaryRole(roles.getIdPref()[1].getId());
         }
       }
     }
