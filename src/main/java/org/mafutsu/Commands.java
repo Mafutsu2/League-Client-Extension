@@ -43,6 +43,7 @@ public class Commands implements IWSClient {
   private long timestampWithDelay;
   private String primaryRole, secondaryRole;
   private ArrayList<Champion> banChampionsPrimary, hoverChampionsPrimary, pickChampionsPrimary, banChampionsSecondary, hoverChampionsSecondary, pickChampionsSecondary;
+  private ScheduledExecutorService scheduler;
 
   public Commands(ICommands callback) {
     this.callback = callback;
@@ -177,7 +178,7 @@ public class Commands implements IWSClient {
           if(readyCheck.get("state").equals("InProgress") && readyCheck.get("playerResponse").equals("None")) {
             if(!isWaitDelay) {
               isWaitDelay = true;
-              ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+              scheduler = Executors.newScheduledThreadPool(1);
               Runnable task = () -> {
                 if(isWaitDelay) {
                   acceptGame();
@@ -188,6 +189,7 @@ public class Commands implements IWSClient {
               scheduler.shutdown();
             }
           } else if(readyCheck.get("state").equals("InProgress")) {
+            scheduler.shutdownNow();
             isWaitDelay = false;
           }
         }
@@ -337,9 +339,10 @@ public class Commands implements IWSClient {
   }
 
   public void dodge() {
-    String[] args = {"", "teambuilder-draft", "quitV2", ""};
-    JSONArray jsonArgs = new JSONArray(Arrays.asList(args));
-    requestManager.sendRequest(POST, "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + URLEncoder.encode(jsonArgs.toString(), StandardCharsets.UTF_8));
+    //String[] args = {"", "teambuilder-draft", "quitV2", ""};
+    //JSONArray jsonArgs = new JSONArray(Arrays.asList(args));
+    //requestManager.sendRequest(POST, "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + URLEncoder.encode(jsonArgs.toString(), StandardCharsets.UTF_8));
+    requestManager.sendRequest(POST, "/process-control/v1/process/quit");
   }
 
   public void createGame(String primaryRole, String secondaryRole) {
