@@ -462,7 +462,7 @@ public class Commands implements IWSClient {
   }
 
   public void swapPickOrder(int actionId) {
-    requestManager.sendRequest(POST, "/lol-champ-select/v1/session/swaps/" + actionId + "/accept");
+    requestManager.sendRequest(POST, "/lol-champ-select/v1/session/pick-order-swaps/" + actionId + "/accept");
   }
 
   public void openInBrowser(String id) {
