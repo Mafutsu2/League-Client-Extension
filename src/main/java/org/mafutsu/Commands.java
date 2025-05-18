@@ -44,6 +44,7 @@ public class Commands implements IWSClient {
   private String primaryRole, secondaryRole;
   private ArrayList<Champion> banChampionsPrimary, hoverChampionsPrimary, pickChampionsPrimary, banChampionsSecondary, hoverChampionsSecondary, pickChampionsSecondary;
   private ScheduledExecutorService scheduler;
+  private int tempchid = -1;
 
   public Commands(ICommands callback) {
     this.callback = callback;
@@ -173,8 +174,8 @@ public class Commands implements IWSClient {
     JSONArray arr = new JSONArray(message);
     if(isAutoAccept && arr.get(1).equals("OnJsonApiEvent_lol-matchmaking_v1_search")) {
       JSONObject data = (JSONObject) arr.get(2);
-      if(data.get("data") instanceof JSONObject dataObj) {
-        if(dataObj.get("readyCheck") instanceof JSONObject readyCheck) {
+      if(data.opt("data") instanceof JSONObject dataObj) {
+        if(dataObj.opt("readyCheck") instanceof JSONObject readyCheck) {
           if(readyCheck.get("state").equals("InProgress") && readyCheck.get("playerResponse").equals("None")) {
             if(!isWaitDelay) {
               isWaitDelay = true;
@@ -232,11 +233,11 @@ public class Commands implements IWSClient {
             if(currentAction.getInt("actorCellId") == localPlayerCellId) {
               try {
                 if(currentAction.getString("type").equals("pick") && !currentAction.getBoolean("completed") && currentAction.getBoolean("isInProgress") && data.getJSONObject("timer").getString("phase").equals("BAN_PICK"))
-                  parsePick(data, currentAction, isRoleMatching == 0 ? pickChampionsPrimary : pickChampionsSecondary);
+                  parsePick(data, currentAction, isRoleMatching == 0 ? pickChampionsPrimary : pickChampionsSecondary, currentAction.getInt("championId"));
                 else if(isInNeedOfHover || (currentAction.getString("type").equals("pick") && data.getJSONObject("timer").getString("phase").equals("PLANNING")))
                   parseHover(currentAction, canRedo, isRoleMatching == 0 ? hoverChampionsPrimary : hoverChampionsSecondary);
                 else if(currentAction.getString("type").equals("ban") && !currentAction.getBoolean("completed") && currentAction.getBoolean("isInProgress") && data.getJSONObject("timer").getString("phase").equals("BAN_PICK"))
-                  parseBan(data, currentAction, isRoleMatching == 0 ? banChampionsPrimary : banChampionsSecondary);
+                  parseBan(data, currentAction, isRoleMatching == 0 ? banChampionsPrimary : banChampionsSecondary, currentAction.getInt("championId"));
               } catch(Exception e) {
                 e.printStackTrace();
                 if(canRedo)
@@ -267,12 +268,14 @@ public class Commands implements IWSClient {
     pickChampion(hoverChampions.getFirst().getId(), currentAction.getInt("id"), true);
   }
 
-  public void parsePick(JSONObject data, JSONObject currentAction, ArrayList<Champion> pickChampions) {
+  public void parsePick(JSONObject data, JSONObject currentAction, ArrayList<Champion> pickChampions, int hoveredChampionId) {
     if(hasPicked || pickChampions.isEmpty())
       return;
     for(Champion pickChampion : pickChampions) {
       if(!getBans(data).contains(pickChampion.getId()) && !getPicks(data, localPlayerCellId, false).contains(pickChampion.getId())) {
-        hasPicked = true;
+        boolean isHover = hoveredChampionId != pickChampion.getId();
+        if(!isHover)
+          hasPicked = true;
         System.out.println("picked");
         pickChampion(pickChampion.getId(), currentAction.getInt("id"), false);
         break;
@@ -280,14 +283,16 @@ public class Commands implements IWSClient {
     }
   }
 
-  public void parseBan(JSONObject data, JSONObject currentAction, ArrayList<Champion> banChampions) {
+  public void parseBan(JSONObject data, JSONObject currentAction, ArrayList<Champion> banChampions, int hoveredChampionId) {
     if(hasBanned || banChampions.isEmpty())
       return;
     for(Champion banChampion : banChampions) {
       if(!getBans(data).contains(banChampion.getId()) && !getPicks(data, localPlayerCellId, true).contains(banChampion.getId())) {
-        hasBanned = true;
-        System.out.println("banned");
-        pickChampion(banChampion.getId(), currentAction.getInt("id"), false);
+        boolean isHover = hoveredChampionId != banChampion.getId();
+        if(!isHover)
+          hasBanned = true;
+        System.out.println("hover or banned");
+        pickChampion(banChampion.getId(), currentAction.getInt("id"), isHover);
         break;
       }
     }
@@ -339,10 +344,13 @@ public class Commands implements IWSClient {
   }
 
   public void dodge() {
-    //String[] args = {"", "teambuilder-draft", "quitV2", ""};
-    //JSONArray jsonArgs = new JSONArray(Arrays.asList(args));
-    //requestManager.sendRequest(POST, "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + URLEncoder.encode(jsonArgs.toString(), StandardCharsets.UTF_8));
-    requestManager.sendRequest(POST, "/process-control/v1/process/quit");
+    String[] args = {"", "teambuilder-draft", "quitV2", ""};
+    JSONArray jsonArgs = new JSONArray(Arrays.asList(args));
+    requestManager.sendRequest(POST, "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + URLEncoder.encode(jsonArgs.toString(), StandardCharsets.UTF_8));
+    requestManager.sendRequest(POST, "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + URLEncoder.encode(jsonArgs.toString(), StandardCharsets.UTF_8));
+    requestManager.sendRequest(POST, "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + URLEncoder.encode(jsonArgs.toString(), StandardCharsets.UTF_8));
+    requestManager.sendRequest(POST, "/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=" + URLEncoder.encode(jsonArgs.toString(), StandardCharsets.UTF_8));
+    //requestManager.sendRequest(POST, "/process-control/v1/process/quit");
   }
 
   public void createGame(String primaryRole, String secondaryRole) {
@@ -407,9 +415,9 @@ public class Commands implements IWSClient {
   public void pickChampion(int championId, int actionId, boolean isHover) {
     JSONObject payload = new JSONObject();
     payload.put("championId", championId);
-    requestManager.sendRequest(PATCH, "/lol-champ-select/v1/session/actions/" + actionId, payload.toString());
     if(!isHover)
-      requestManager.sendRequest(POST, "/lol-champ-select/v1/session/actions/" + actionId + "/complete", payload.toString());
+      payload.put("completed", true);
+    requestManager.sendRequest(PATCH, "/lol-champ-select/v1/session/actions/" + actionId, payload.toString());
   }
 
   public void setAutoAccept(boolean isSelected) {
