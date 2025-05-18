@@ -44,7 +44,6 @@ public class Commands implements IWSClient {
   private String primaryRole, secondaryRole;
   private ArrayList<Champion> banChampionsPrimary, hoverChampionsPrimary, pickChampionsPrimary, banChampionsSecondary, hoverChampionsSecondary, pickChampionsSecondary;
   private ScheduledExecutorService scheduler;
-  private int tempchid = -1;
 
   public Commands(ICommands callback) {
     this.callback = callback;
